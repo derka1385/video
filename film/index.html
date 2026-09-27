@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Still Here</title>
+<style>
+  :root { --ink: #d9d4cc; --dim: #6f6a63; --bg: #000; }
+  html, body { margin: 0; height: 100%; background: var(--bg); overflow: hidden; }
+  body { display: flex; align-items: center; justify-content: center; }
+  canvas { display: block; width: 100vw; height: calc(100vw * 1080 / 1920); max-height: 100vh; max-width: calc(100vh * 1920 / 1080); background: #000; }
+  #veil { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+          gap: 18px; background: #000; color: var(--ink); font-family: 'Cormorant Garamond', Georgia, serif; cursor: pointer;
+          transition: opacity 1.6s ease; text-align: center; padding: 0 16px; }
+  #veil h1 { font-family: 'Jost', sans-serif; font-weight: 200; letter-spacing: 0.6em; font-size: clamp(18px, 3vw, 30px);
+             margin: 0 0 0 0.6em; text-transform: uppercase; }
+  #veil p { margin: 0; font-style: italic; font-weight: 300; font-size: clamp(15px, 2vw, 20px); color: var(--dim); }
+  #veil .go { margin-top: 26px; font-family: 'Jost', sans-serif; font-weight: 300; font-style: normal; letter-spacing: 0.3em;
+              font-size: 12px; text-transform: uppercase; color: var(--ink); border: 1px solid #3a3733; padding: 12px 22px; }
+  #veil.gone { opacity: 0; pointer-events: none; }
+  #err { position: fixed; bottom: 12px; left: 12px; right: 12px; color: #a66; font: 12px monospace; white-space: pre-wrap; }
+</style>
+<script src="fonts.js"></script>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="veil">
+  <h1>Still Here</h1>
+  <p>a short film about the moment a table changes language</p>
+  <p>2 min 42 s &middot; best with headphones, in a dark room</p>
+  <div class="go">Begin</div>
+</div>
+<audio id="snd" src="soundtrack.m4a" preload="auto"></audio>
+<div id="err"></div>
+<script src="cues.js"></script>
+<script src="shaders.js"></script>
+<script src="film.js"></script>
+<script>
+(async function () {
+  const q = new URLSearchParams(location.search);
+  const canvas = document.getElementById('c');
+  const veil = document.getElementById('veil');
+  const snd = document.getElementById('snd');
+  try {
+    await document.fonts.load("italic 300 40px 'Cormorant Garamond'");
+    await document.fonts.load("300 40px 'Cormorant Garamond'");
+    await document.fonts.load("200 40px 'Jost'");
+    FILM.init(canvas, { scale: parseFloat(q.get('scale') || '1') });
+  } catch (e) { document.getElementById('err').textContent = e.message.slice(0, 4000); throw e; }
+
+  // offline rendering / stills: the renderer drives time itself
+  if (q.has('render')) {
+    veil.remove();
+    window.renderAt = t => { FILM.render(t); return true; };
+    window.READY = true;
+    return;
+  }
+
+  let playing = false, t0 = 0;
+  const now = () => snd.currentTime;
+  function frame() {
+    FILM.render(playing ? now() : t0);
+    if (playing && snd.ended) playing = false;
+    requestAnimationFrame(frame);
+  }
+  veil.addEventListener('click', async () => {
+    veil.classList.add('gone');
+    try { await snd.play(); } catch (e) {}
+    playing = true;
+  });
+  document.addEventListener('keydown', e => {
+    if (e.code === 'Space') { if (snd.paused) { snd.play(); playing = true; } else { snd.pause(); t0 = snd.currentTime; playing = false; } }
+    if (e.code === 'ArrowRight') snd.currentTime = Math.min(FILM.duration, snd.currentTime + 5);
+    if (e.code === 'ArrowLeft') snd.currentTime = Math.max(0, snd.currentTime - 5);
+  });
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

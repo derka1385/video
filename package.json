@@ -1,0 +1,13 @@
+{
+  "name": "still-here",
+  "private": true,
+  "description": "Still Here - a procedural short film (WebGL2 picture, synthesised soundtrack)",
+  "scripts": {
+    "sound": "python3 audio/mix.py",
+    "stills": "node render/stills.js build/stills",
+    "render": "node render/render.js"
+  },
+  "dependencies": {
+    "playwright": "1.56.0"
+  }
+}
