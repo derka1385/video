@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Still Here</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --ground: #050506;
+    --ink: #ddd6cc;
+    --dim: #7c756c;
+    --line: #2b2825;
+    --candle: #d89a5b;
+    --display: 'Jost', 'Futura', 'Avenir Next', 'Helvetica Neue', sans-serif;
+    --serif: 'Cormorant Garamond', 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
+  }
+  html, body { height: 100%; }
+  body { margin: 0; background: var(--ground); color: var(--ink); overflow: hidden; font-family: var(--serif); }
+  .stage { position: relative; height: 100%; display: flex; align-items: center; justify-content: center; padding-inline: 16px; box-sizing: border-box; }
+  canvas#c { display: block; width: 100%; max-width: 100%; aspect-ratio: 16 / 9; height: auto; max-height: 100%; object-fit: contain; background: #000; }
+  @supports not (aspect-ratio: 16 / 9) { canvas#c { height: calc((100vw - 32px) * 9 / 16); } }
+
+  .veil { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+          gap: 14px; text-align: center; padding-inline: 16px; background: rgba(5, 5, 6, 0.72); transition: opacity 1.4s ease; }
+  .veil[data-state="playing"] { opacity: 0; pointer-events: none; }
+  .veil h1 { margin: 0; font-family: var(--display); font-weight: 200; font-size: clamp(20px, 3.4vw, 34px);
+             letter-spacing: 0.55em; text-indent: 0.55em; text-transform: uppercase; text-wrap: balance; }
+  .veil .log { margin: 4px 0 0; font-style: italic; font-weight: 300; font-size: clamp(16px, 2.1vw, 21px); max-width: 34ch; line-height: 1.35; }
+  .veil .meta { margin: 0; font-family: var(--display); font-weight: 300; font-size: 11px; letter-spacing: 0.24em; text-transform: uppercase;
+                color: var(--dim); font-variant-numeric: tabular-nums; }
+  .veil button { margin-top: 18px; font: 300 12px/1 var(--display); letter-spacing: 0.32em; text-indent: 0.32em; text-transform: uppercase;
+                 color: var(--ink); background: transparent; border: 1px solid var(--line); padding: 14px 26px; cursor: pointer;
+                 transition: border-color 0.4s ease, color 0.4s ease; }
+  .veil button:hover { border-color: var(--candle); color: #f0e6d8; }
+  .veil button:focus-visible, .bar button:focus-visible, .bar input:focus-visible { outline: 1px solid var(--candle); outline-offset: 3px; }
+  .veil .note { margin: 0; font-size: 14px; color: var(--dim); max-width: 46ch; font-style: italic; }
+
+  .bar { position: absolute; left: 16px; right: 16px; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); display: flex; align-items: center; gap: 14px;
+         font: 300 11px/1 var(--display); letter-spacing: 0.14em; color: var(--dim); font-variant-numeric: tabular-nums;
+         transition: opacity 0.8s ease; }
+  .bar[data-quiet="true"] { opacity: 0; }
+  .bar button { background: none; border: 0; color: var(--ink); font: inherit; letter-spacing: 0.2em; text-transform: uppercase; cursor: pointer; padding: 6px 0; min-width: 5.2em; text-align: left; }
+  .bar input[type=range] { flex: 1; appearance: none; -webkit-appearance: none; height: 18px; background: transparent; cursor: pointer; }
+  .bar input[type=range]::-webkit-slider-runnable-track { height: 1px; background: linear-gradient(to right, var(--candle) var(--p, 0%), var(--line) var(--p, 0%)); }
+  .bar input[type=range]::-moz-range-track { height: 1px; background: var(--line); }
+  .bar input[type=range]::-moz-range-progress { height: 1px; background: var(--candle); }
+  .bar input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 7px; height: 7px; margin-top: -3px; border-radius: 50%; background: var(--ink); }
+  .bar input[type=range]::-moz-range-thumb { width: 7px; height: 7px; border: 0; border-radius: 50%; background: var(--ink); }
+  .err { color: #c7a28a; }
+  @media (prefers-reduced-motion: reduce) { .veil, .bar { transition: none; } }
+</style>
+<script src="fonts.js"></script>
+
+</head>
+<body>
+<div class="stage">
+  <canvas id="c" width="1920" height="1080" aria-label="Still Here, a short animated film"></canvas>
+  <div class="veil" id="veil" data-state="idle">
+    <h1>Still Here</h1>
+    <p class="log">A dinner table. Everyone is speaking English, until three of them aren't.</p>
+    <p class="meta">A short film &middot; 2 min 42 s &middot; best with headphones, in the dark</p>
+    <button id="begin" type="button">Begin</button>
+    <p class="note" id="note">Rendered live in your browser. The picture and the sound are generated from code.</p>
+  </div>
+  <div class="bar" id="bar" data-quiet="true" hidden>
+    <button id="play" type="button">Pause</button>
+    <input id="seek" type="range" min="0" max="1000" value="0" aria-label="Position in film">
+    <span id="tc">0:00 / 2:42</span>
+  </div>
+</div>
+<audio id="snd" src="soundtrack.mp3" preload="auto"></audio>
+
+<script src="cues.js"></script>
+<script src="shaders.js"></script>
+<script src="film.js"></script>
+<script>
+(async function () {
+  const $ = id => document.getElementById(id);
+  const canvas = $('c'), veil = $('veil'), snd = $('snd'), bar = $('bar'), play = $('play'), seek = $('seek'), tc = $('tc');
+  const fmt = s => { s = Math.max(0, s); const m = Math.floor(s / 60); return m + ':' + String(Math.floor(s % 60)).padStart(2, '0'); };
+  const dur = window.FILM ? FILM.duration : 162.3;
+  const POSTER = 9.5;
+
+  // offline rendering / stills: the renderer drives time itself
+  const q = new URLSearchParams(location.search);
+  if (q.has('render')) {
+    await document.fonts.load("italic 300 40px 'Cormorant Garamond'");
+    await document.fonts.load("300 40px 'Cormorant Garamond'");
+    await document.fonts.load("200 40px 'Jost'");
+    FILM.init(canvas, { scale: parseFloat(q.get('scale') || '1') });
+    veil.remove(); bar.remove();
+    document.body.style.cssText = 'margin:0;background:#000';
+    canvas.style.cssText = 'display:block;width:' + canvas.width + 'px;height:' + canvas.height + 'px';
+    document.querySelector('.stage').style.cssText = 'display:block;padding:0';
+    window.renderAt = t => { FILM.render(t); return true; };
+    window.READY = true;
+    return;
+  }
+
+  // start at a resolution the screen can actually show
+  const cssW = Math.max(320, canvas.getBoundingClientRect().width || window.innerWidth);
+  let scale = Math.min(1, Math.max(0.45, (cssW * (window.devicePixelRatio || 1)) / 1920));
+  try {
+    await Promise.all([
+      document.fonts.load("italic 300 40px 'Cormorant Garamond'"),
+      document.fonts.load("300 40px 'Cormorant Garamond'"),
+      document.fonts.load("200 40px 'Jost'")]);
+    FILM.init(canvas, { scale });
+    FILM.render(POSTER);
+  } catch (e) {
+    $('note').textContent = 'This film is drawn live with WebGL2, which this browser does not provide. Try a recent desktop Chrome, Firefox or Safari.';
+    $('note').classList.add('err');
+    $('begin').hidden = true;
+    return;
+  }
+
+  let playing = false, ended = false, started = false, quietTimer = 0, lastT = -1;
+  const frames = [];
+  function wake() {
+    bar.dataset.quiet = 'false';
+    clearTimeout(quietTimer);
+    if (playing) quietTimer = setTimeout(() => { bar.dataset.quiet = 'true'; }, 2200);
+  }
+  function setPlaying(p) {
+    playing = p;
+    play.textContent = p ? 'Pause' : 'Play';
+    if (p) { snd.play().catch(() => {}); } else { snd.pause(); }
+    wake();
+  }
+  function frame(now) {
+    const t = snd.currentTime || 0;
+    const show = (!started || ended) ? POSTER : t;
+    // only redraw when the picture can have changed
+    if (playing || show !== lastT) { FILM.render(show); lastT = show; }
+    seek.value = String(Math.round((t / dur) * 1000));
+    seek.style.setProperty('--p', (t / dur * 100).toFixed(2) + '%');
+    tc.textContent = fmt(t) + ' / ' + fmt(dur);
+    // keep it smooth: step resolution down if frames are slow
+    if (playing) {
+      frames.push(now);
+      if (frames.length > 45) {
+        const avg = (frames[frames.length - 1] - frames[0]) / (frames.length - 1);
+        frames.length = 0;
+        if (avg > 48 && FILM.getScale() > 0.36) FILM.resize(Math.max(0.35, FILM.getScale() * 0.8));
+      }
+    } else frames.length = 0;
+    requestAnimationFrame(frame);
+  }
+
+  $('begin').addEventListener('click', () => {
+    if (ended) { snd.currentTime = 0; ended = false; }
+    started = true;
+    veil.dataset.state = 'playing';
+    bar.hidden = false;
+    setPlaying(true);
+    canvas.focus?.();
+  });
+  play.addEventListener('click', () => setPlaying(!playing));
+  canvas.addEventListener('click', () => { if (veil.dataset.state === 'playing') setPlaying(!playing); });
+  seek.addEventListener('input', () => { snd.currentTime = (parseInt(seek.value, 10) / 1000) * dur; wake(); });
+  document.addEventListener('pointermove', wake);
+  document.addEventListener('keydown', e => {
+    if (veil.dataset.state !== 'playing') return;
+    if (e.code === 'Space') { e.preventDefault(); setPlaying(!playing); }
+    if (e.code === 'ArrowRight') snd.currentTime = Math.min(dur, snd.currentTime + 5);
+    if (e.code === 'ArrowLeft') snd.currentTime = Math.max(0, snd.currentTime - 5);
+    wake();
+  });
+  snd.addEventListener('ended', () => {
+    playing = false; ended = true;
+    veil.dataset.state = 'idle';
+    $('begin').textContent = 'Watch again';
+    bar.hidden = true;
+  });
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

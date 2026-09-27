@@ -663,6 +663,26 @@
     drawTitle(0);
   }
 
+  // live playback: trade resolution for frame rate on slower GPUs
+  function resize(s) {
+    if (Math.abs(s - scale) < 1e-3) return;
+    scale = s;
+    SW = Math.round(W * scale); SH = Math.round(PIC_H * scale);
+    gl.canvas.width = Math.round(W * scale); gl.canvas.height = Math.round(H * scale);
+    const free = fb => { gl.deleteFramebuffer(fb.fb); gl.deleteTexture(fb.tex); };
+    free(fbScene);
+    for (const b of bloomChain) { free(b.down); free(b.up); }
+    bloomChain = [];
+    fbScene = makeFB(SW, SH);
+    let w = SW, h = SH;
+    for (let i = 0; i < 6; i++) {
+      w = Math.max(1, w >> 1); h = Math.max(1, h >> 1);
+      bloomChain.push({ down: makeFB(w, h), up: makeFB(w, h) });
+    }
+    titleCanvas.width = SW; titleCanvas.height = SH;
+    titleKey = '';
+  }
+
   function drawThoughtTexture(slot, k) {
     if (textKey[slot] === k) return;
     textKey[slot] = k;
@@ -819,5 +839,5 @@
     return S;
   }
 
-  window.FILM = { init, render, duration: CUES.duration, cues: CUES, frameState };
+  window.FILM = { init, render, resize, getScale: () => scale, duration: CUES.duration, cues: CUES, frameState };
 })();

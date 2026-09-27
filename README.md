@@ -13,7 +13,7 @@ follow.
 - **Watch:** `out/still-here.mp4`
 - **Or run it live:** open `film/index.html` in a desktop browser with WebGL2 and
   press *Begin*. The picture is generated in real time on your GPU and plays
-  against `film/soundtrack.m4a`. Space pauses; ← → skip 5 s.
+  against `film/soundtrack.mp3`. Space pauses; ← → skip 5 s.
 - **Read it:** [`SCREENPLAY.md`](SCREENPLAY.md) has the script, what each moment is
   for, and the Portuguese dialogue with translations. The film itself never
   translates it.
