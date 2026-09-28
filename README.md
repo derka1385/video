@@ -47,10 +47,12 @@ python3 audio/mix.py                         # soundtrack + cue sheet (about 1 m
 npm install
 node render/stills.js build/stills 30 80 142 # a few frames to look at
 node render/render.js                        # the film: build/still-here-master.mp4
+render/deliver.sh                            # shareable encode: out/still-here.mp4
 ```
 
 On a machine without a GPU, Chromium falls back to SwiftShader and each 1080p
-frame takes about 4 seconds. With a GPU, the same page runs in real time.
+frame takes about 4 seconds (the released film took 4 h 13 min on 4 CPU cores).
+With a GPU, the same page runs in real time.
 
 ## Credits
 
